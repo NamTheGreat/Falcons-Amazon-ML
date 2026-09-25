@@ -1,0 +1,6 @@
+# Python 3.12
+polars==1.44.2      # MIT
+numpy==2.5.3        # BSD-3
+lightgbm==4.7.0     # MIT  (macOS: needs `brew install libomp`)
+rapidfuzz==3.14.6   # MIT
+anyascii==0.3.3     # ISC

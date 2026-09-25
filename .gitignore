@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+env/
+.venv/
+.ipynb_checkpoints/
+
+# Raw Datasets & Intermediate working files (>100MB files will fail GitHub push)
+student_resource/dataset/
+work/
+output/
+*.tsv
+*.parquet
+*.log
+*.tar.gz
+
+# IDE
+.vscode/
+.idea/
