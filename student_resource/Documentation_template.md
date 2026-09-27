@@ -1,14 +1,14 @@
 # ML Challenge 2026: Business Entity Resolution Solution Template
 
 **Team Name:** Falcons  
-**Team Members:** Naman Kalia & Team  
+**Team Members:** Naman Kalia, Pawan Jain, Aarohi Tyagi, Tvisha Choudhary  
 **Submission Date:** September 27, 2026  
 
 ---
 
 ## 1. Executive Summary
 
-We resolve business entities across three noisy sources using a language-agnostic, inverted-index blocking architecture feeding a two-stage LightGBM classifier optimized for the macro-$F_{0.5}$ metric. Key innovations include multi-strategy hashed-key blocking with phonetic skeleton token collisions to bridge cross-script/transliteration variations without dictionaries, out-of-sample two-stage classification with competition context margins, and automated metric-driven threshold calibration. Our solution achieves a validated **0.98195 macro-$F_{0.5}$** on held-out data with zero external data or APIs.
+We resolve business entities across three noisy sources using a language-agnostic, inverted-index blocking architecture feeding a two-stage LightGBM classifier optimized for the macro-$F_{0.5}$ metric. Key innovations include multi-strategy hashed-key blocking with phonetic skeleton token collisions to bridge cross-script/transliteration variations without dictionaries, out-of-sample two-stage classification with competition context margins, and automated metric-driven threshold calibration. Our solution achieves a validated **0.98240 macro-$F_{0.5}$** on held-out data and **0.973 on the public leaderboard**, with zero external data or APIs.
 
 ---
 
@@ -56,6 +56,8 @@ We resolve business entities across three noisy sources using a language-agnosti
 ## 5. Results & Error Analysis
 
 - **Macro-$F_{0.5}$ Score:** **0.98240** in out-of-sample validation (calibrated threshold $\tau = 0.68$, best iteration 2084).
+- **Public Leaderboard:** **0.973** (up from 0.967 on the initial baseline). The ~0.009 gap to local validation is concentrated in France (zero training exposure); we verified it is a near-miss-distractor *discrimination* effect, not confidence miscalibration — France's median top-1 score (0.999) is indistinguishable from US/India, but France retains ~1.4 surviving candidates per query vs ~1.0.
+- **Decision-layer ablations (validated on held-out data, all rejected):** expected-$F_{0.5}$ optimal top-$k$ selection (0.98100), per-country thresholds (US and India independently peak at the same $\tau$), doubling Stage-2 training data (+0.00045), and post-hoc margin/agreement filters ($\le$ +0.00003). None beat a single global threshold — the decision layer is saturated and the remaining error lies in candidate discrimination.
 - **Test Inference Output:** 5,806,496 matches assigned across 1,633,886 S1 entities; 98,658 S1 singletons predicted empty.
 - **Common false positives (wrong merges):** Near-duplicate sibling businesses sharing identical addresses with only a single generic descriptor swapped (e.g. "Summit Logistics" vs "Summit Storage" at the same commercial park), or generic corporate names sharing high-density building numbers.
 - **Common false negatives (missed matches):** Queries exhibiting extreme name corruption combined with missing or sparse addresses ($<3.3\%$ missing address cases), where neither name nor address provides sufficient blocking overlap.

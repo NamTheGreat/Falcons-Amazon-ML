@@ -454,6 +454,23 @@ Checked live (SSH into the Azure VM, plus the Unstop submissions panel):
 - **The local-val-vs-real-LB gap has stayed roughly constant in absolute terms across both jumps**: v2 was 0.9766 local → 0.966843 real (gap ≈0.0098); v3/v4 are ~0.982 local → 0.973 real (gap ≈0.009). The France-normalization fixes and the extra training data raised the *whole* model (local and real both went up together), but did **not** shrink the France-specific gap itself — it's still sitting there at almost the same size. To actually close it, per the 2026-09-25 diagnosis, needs work specifically targeting France's near-miss-candidate discrimination, not further generic model improvements.
 - **State as of this entry**: 3/15 submissions used (2 today, 3 remaining today). Current best/live submission: 0.973 (v3 or v4, tied). No further experiments in progress.
 
+### 2026-09-27 (final hour) — Post-processing ablations rejected; 0.99 not reachable; package assembled
+
+Goal set at 22:00 IST: reach ≥0.99 by 23:30 IST. With ~85 min left, a retrain+predict cycle (105–120 min) could not fit, so the only remaining lever was post-processing v4's existing `test_scores.parquet`, validated first on labeled `val_frame.parquet` (44,010 held-out entities, 2.49M pairs):
+
+| Variant (thr 0.68 unless noted) | val macro F0.5 |
+|:--|--:|
+| **Baseline** | **0.98240** |
+| thr 0.73 | 0.98221 |
+| p2-margin ≥ 0.05 / 0.1 / 0.2 / 0.3 / 0.5 | 0.98241 / 0.98242 / 0.98241 / **0.98243** / 0.98241 |
+| p1-margin ≥ 0.05 / 0.1 / 0.2 / 0.3 / 0.5 | 0.98186 / 0.98131 / 0.98013 / 0.97899 / 0.97610 |
+| p1 ≥ 0.05 / 0.2 / 0.5 agreement floor | 0.98205 / 0.98057 / 0.97701 |
+| thr 0.60–0.70 × p2-margin 0.1/0.3 | 0.98219 – 0.98240 |
+
+**Finding**: nothing beats the plain threshold by more than +0.00003 (noise); every stage-1-based filter *hurts*. The decision layer is saturated — the model already prices in margin (`q_margin` is the #1 feature by >2x). Combined with the earlier rejections (expected-F rule, per-country thresholds, 2x stage-2 data), **every cheap lever has now been measured and found flat**. Remaining error is in candidate discrimination (France near-miss distractors, ~1.8% blocking-recall ceiling, no-address records) — all of which need a re-block/retrain cycle that did not fit. **0.99 was not reached; final score stands at 0.973 public LB / 0.98240 local.** Nothing was submitted blind.
+
+**Package**: `Falcons_submission/` assembled on the Azure VM (`/home/azureuser/Falcons-Amazon-ML/`) per the required structure — `output/` (v4 `matching_results.tsv` + `candidate_pairs.tsv`, re-validated after copy), `code/business_entity_resolution/` (src, README, pinned requirements, `run_all.sh`, `run_pipeline_end_to_end.py`; the broken watcher script excluded), and the filled `Documentation_template.md` at the root. Zipped as `Falcons_submission.zip`.
+
 ---
 
 *End of reference document. Update this file as the challenge progresses.*
