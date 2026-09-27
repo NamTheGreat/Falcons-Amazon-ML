@@ -1,0 +1,6 @@
+{
+ "threshold": 0.6799999999999999,
+ "val_f05": 0.9824,
+ "stage2_best_iter": 2084,
+ "holdout_country": null
+}

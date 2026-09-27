@@ -1,10 +1,10 @@
 # Amazon ML Challenge 2026 — Master Reference
 
-> **Last Updated**: 2026-09-27 17:15 IST
+> **Last Updated**: 2026-09-27 21:30 IST
 > **Challenge Window**: Sep 25, 12:00 AM IST → Sep 27, 11:59 PM IST (Final Day)
 > **Target Score**: F₀.₅ > 98.0
-> **Submissions**: Submission #1 = 0.966843 (Public LB); **Submission #2 = Generated (Validation F₀.₅ = 0.98195, Threshold = 0.73)**
-> **Best Public LB Score**: **0.966843** (Submission #1) → Submission #2 pending leaderboard score
+> **Submissions**: #1 (v2, thr 0.68) = 0.966843 public LB · #2 (v3, thr 0.73) = **0.973** public LB, 09/27 5:05 PM IST · #3 (v4, thr 0.68) = **0.973** public LB, 09/27 9:17 PM IST
+> **Best Public LB Score**: **0.973** (Submissions #2 and #3 — identical at 3-decimal display precision; see §13 for why). **3/15 total submissions used (2 used today, 3 remaining today, 12 remaining overall).**
 
 ---
 
@@ -430,7 +430,29 @@ Quick follow-ups run directly on v3's `val_frame.parquet` (no retraining):
 - **Reconciliation complete**: `scratch/verify_v3_decision_rule.py` was executed directly on the Azure VM against `work/val_frame.parquet` using the canonical `evaluate.macro_f05()`:
   - Flat threshold $\tau = 0.73$: exactly **`0.98195`** ($P = 0.99596, R = 0.95541$), perfectly matching `config.json`. (US-only: `0.98475`, India-only: `0.97779`).
   - `decide_expected_f`: **`0.98100`** ($P = 0.99576, R = 0.95444$), strictly inferior to flat thresholding.
-- **Given both of the above closed off without needing more time, redirected the remaining budget to the one untested, well-motivated lever**: more stage-2 training data (`--n-stage2-queries`, currently 4M, Azure VM has headroom at 32GB RAM). More stage-2 rows means more real near-miss negatives for the model to learn to reject — directly targeting the France weakness identified on 2026-09-25 (weak discrimination against near-miss distractors, not weak confidence). In progress as of this entry; see Change Log in `approach.md` for the result once available.
+### 2026-09-27 — v4 Model Retrained with 8M Stage-2 Queries (New Best Model)
+
+- **Training**: `--n-stage2-queries 8000000` (76,461,553 Stage-2 candidate pairs; 7,526,194 Stage-2 training rows, 5,133,430 positives).
+- **Validation**:
+  - Macro $F_{0.5}$: **`0.98240`** (calibrated threshold $\tau = 0.68$, best iteration 2084).
+  - Outperformed v3 (`0.98195`) and baseline v2 (`0.9766`).
+  - Threshold curve: plateau between 0.60 and 0.80 (0.98215 - 0.98240), confirming stability across confidence regions.
+- **Test Inference**:
+  - Scored all 113,366,071 test candidate pairs.
+  - Generated **5,806,496 matches** across **1,633,886 Source 1 entities**; **98,658 singletons**.
+  - Validation script output: `PASS — no blocking issues found. Safe to submit.`
+- **Artifacts**:
+  - Saved to `output/matching_results.tsv` (93 MB), `output/matching_results.zip` (40 MB), and `~/Downloads/matching_results.zip`.
+  - Model checkpoints stored in `submissions/v4_val09824/models/` and `work/models/`.
+
+### 2026-09-27 — Submissions #2 (v3) and #3 (v4) confirmed on the real leaderboard: both 0.973
+
+Checked live (SSH into the Azure VM, plus the Unstop submissions panel):
+
+- **v4's `predict.py` finished cleanly**: `scoring done 3083s`, threshold 0.680 → 5,806,496 matches, 98,658/1,732,544 S1 entities with no match. But the automated watcher script (`run_v4_predict_when_ready.sh`) called `validate_submission.py` with the **wrong flag names and a wrong path** (`--submission`/`--test-queries` instead of `--matching`/`--candidate`/`--test-dir`, and a nonexistent `test_queries.tsv`), so it errored out immediately without actually validating anything. **Re-ran it with the correct flags directly: PASS — no blocking issues found, safe to submit.** (Fix the watcher script if it's reused — the real validator's flags are `--matching`, `--candidate`, `--test-dir`.)
+- **Leaderboard**: Submission #2 (v3, threshold 0.73) = **0.973**. Submission #3 (v4, threshold 0.68) = **0.973** — displayed identically because the real underlying difference (local val 0.98195 vs 0.98240, a gap of 0.00045) is smaller than the leaderboard's 3-decimal display precision. **Not a bug — this is exactly what the flat local-validation threshold curve predicted**: doubling stage-2 training data (the whole point of v4) is now confirmed dead on *both* local validation and the real leaderboard. Don't spend further time pushing `--n-stage2-queries` higher.
+- **The local-val-vs-real-LB gap has stayed roughly constant in absolute terms across both jumps**: v2 was 0.9766 local → 0.966843 real (gap ≈0.0098); v3/v4 are ~0.982 local → 0.973 real (gap ≈0.009). The France-normalization fixes and the extra training data raised the *whole* model (local and real both went up together), but did **not** shrink the France-specific gap itself — it's still sitting there at almost the same size. To actually close it, per the 2026-09-25 diagnosis, needs work specifically targeting France's near-miss-candidate discrimination, not further generic model improvements.
+- **State as of this entry**: 3/15 submissions used (2 today, 3 remaining today). Current best/live submission: 0.973 (v3 or v4, tied). No further experiments in progress.
 
 ---
 

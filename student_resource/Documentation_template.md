@@ -49,14 +49,14 @@ We resolve business entities across three noisy sources using a language-agnosti
 - **Stage 2 Features (25):** Directional unmatched token counts, minimum per-token similarity, legal form agreement/conflict matrices (`Inc`, `Ltd`, `Pvt`, `SARL`, `SAS`), house number edit distance, numeric digit permutations, range containment, and competition context (query rank, margin to next best alternative, entity competition counts).
 
 **Model type:** Two-Stage Gradient Boosted Decision Trees (**LightGBM**, `objective=binary`, `num_leaves=127`, `learning_rate=0.08`, `min_data_in_leaf=50`).  
-**Threshold selection method:** Grid search directly maximizing the official macro-$F_{0.5}$ metric on an out-of-fold validation slice, selecting the optimal threshold **$\tau = 0.73$**.
+**Threshold selection method:** Grid search directly maximizing the official macro-$F_{0.5}$ metric on an out-of-fold validation slice, selecting the optimal threshold **$\tau = 0.68$**.
 
 ---
 
 ## 5. Results & Error Analysis
 
-- **Macro-$F_{0.5}$ Score:** **0.98195** in out-of-sample validation (calibrated threshold $\tau = 0.73$).
-- **Test Inference Output:** 5,774,573 matches assigned across 1,633,992 S1 entities; 98,552 S1 singletons predicted empty.
+- **Macro-$F_{0.5}$ Score:** **0.98240** in out-of-sample validation (calibrated threshold $\tau = 0.68$, best iteration 2084).
+- **Test Inference Output:** 5,806,496 matches assigned across 1,633,886 S1 entities; 98,658 S1 singletons predicted empty.
 - **Common false positives (wrong merges):** Near-duplicate sibling businesses sharing identical addresses with only a single generic descriptor swapped (e.g. "Summit Logistics" vs "Summit Storage" at the same commercial park), or generic corporate names sharing high-density building numbers.
 - **Common false negatives (missed matches):** Queries exhibiting extreme name corruption combined with missing or sparse addresses ($<3.3\%$ missing address cases), where neither name nor address provides sufficient blocking overlap.
 
@@ -64,7 +64,7 @@ We resolve business entities across three noisy sources using a language-agnosti
 
 ## 6. Conclusion
 
-A blocking-first, feature-engineered two-stage LightGBM architecture delivers a scalable, highly accurate business entity resolution solution reaching 0.98195 validation macro-$F_{0.5}$. By prioritizing precision through metric-aligned threshold calibration and language-agnostic phonetic blocking, the system generalizes seamlessly across multilingual records and unseen countries without external dependencies.
+A blocking-first, feature-engineered two-stage LightGBM architecture delivers a scalable, highly accurate business entity resolution solution reaching 0.98240 validation macro-$F_{0.5}$. By prioritizing precision through metric-aligned threshold calibration and language-agnostic phonetic blocking, the system generalizes seamlessly across multilingual records and unseen countries without external dependencies.
 
 ---
 
