@@ -1,10 +1,10 @@
 # Amazon ML Challenge 2026 — Master Reference
 
-> **Last Updated**: 2026-09-25 22:15 IST
-> **Challenge Window**: Sep 25, 12:00 AM IST → Sep 27, 11:59 PM IST (~50 hrs remaining)
-> **Target Score**: F₀.₅ > 98
-> **Submissions Used**: 1 / 15 (4 remaining for Day 1)
-> **Best Public LB Score**: **0.966843** (Submission #1, 2026-09-25 16:36 IST)
+> **Last Updated**: 2026-09-27 17:15 IST
+> **Challenge Window**: Sep 25, 12:00 AM IST → Sep 27, 11:59 PM IST (Final Day)
+> **Target Score**: F₀.₅ > 98.0
+> **Submissions**: Submission #1 = 0.966843 (Public LB); **Submission #2 = Generated (Validation F₀.₅ = 0.98195, Threshold = 0.73)**
+> **Best Public LB Score**: **0.966843** (Submission #1) → Submission #2 pending leaderboard score
 
 ---
 
@@ -404,6 +404,33 @@ A follow-up plan proposed lowering France's decision threshold from 0.68 to ~0.5
 **Follow-up built**: `train.py --holdout-country <country>` holds out an entire country from training (e.g. train on US-only, validate on India-as-if-unseen) to get a real, labeled F0.5-vs-threshold curve for an "unseen country" scenario, instead of guessing from unlabeled test-score distributions. `predict.py --country-thresholds <json>` applies per-country overrides with a safe default fallback for any country not listed (never a hardcoded closed set). Also fixed two genuinely-missing French address terms in `normalize.py`: `cedex` (postal-routing suffix, now stripped) and `bp`/`boite postale` (now canonicalized like `post office`). French legal forms (`sarl`, `sas`, `sci`, `eurl`, ...) were already handled before this fix.
 
 **Next step (to run on Colab, not locally)**: use `--holdout-country` to get evidence-based per-country thresholds before spending another submission on threshold changes, and re-run blocking + training with the improved blocker (98.2% recall on a train sample vs 97.2% previously) and the frequency features already in `features.py`.
+
+### 2026-09-27 — Submission #2 generated: v3 pipeline with 0.98195 validation F0.5
+
+- **Execution**: Ran end-to-end on an Azure Ubuntu VM (`Standard_E4as_v4`, 4 vCPUs, 32 GB RAM) via automated runner `run_pipeline_end_to_end.py`.
+- **Key Pipeline Improvements**:
+  - Multi-family blocking (8 families + phonetic skeleton token collision) capped with memory-sliced key generation.
+  - Enhanced French normalization (`cedex`, `bp`, `boite postale` canonicalization).
+  - 66 features computed across 2-stage LightGBM architecture.
+  - Out-of-sample Stage 2 training protocol with early stopping.
+- **Results**:
+  - Candidate pairs: 113,366,071 pairs for 9,969,589 queries.
+  - Tuned decision threshold: **0.73** (up from 0.68).
+  - Validation macro-$F_{0.5}$: **0.98195** (stage 2 best iteration 2117).
+  - Test predictions: 5,774,573 matches across 1,633,992 S1 entities; 98,552 singletons (0 matches).
+  - Validation: Passed all official competition validator checks (`validate_submission.py`).
+- **Artifacts**: Downloaded to `submissions/v3_val098195/`, `output/matching_results.tsv`, and `~/Downloads/matching_results.tsv`.
+- **Status: not yet uploaded to the leaderboard as of this entry.** Upload it as Submission #2 — it's already validated and it's the safe fallback while further work continues.
+
+### 2026-09-27 — Decision-rule / country-threshold experiments (pre-existing v3 model, no retraining)
+
+Quick follow-ups run directly on v3's `val_frame.parquet` (no retraining):
+- **`decide_expected_f`** (Poisson-binomial expected-F0.5 selection, built earlier but never wired in) **underperforms the flat threshold**: reported flat τ=0.73 F0.5 0.98773 vs. `decide_expected_f` 0.98680. Plausible mechanism: LightGBM scores aren't well-calibrated probabilities at the tails, and the rule's independence-across-candidates assumption doesn't hold (candidates for the same query share context features). **Decision: keep the flat threshold, don't wire this in.**
+- **Country-specific thresholds aren't indicated**: slicing the existing (US+India) validation set by country, both independently peak at τ=0.73 (US F0.5 0.98873, India F0.5 0.98624). Weaker evidence than a true unseen-country test would be (both countries were trained on), but sufficient given the time budget. **Decision: one global threshold, no `country_thresholds.json`.**
+- **Reconciliation complete**: `scratch/verify_v3_decision_rule.py` was executed directly on the Azure VM against `work/val_frame.parquet` using the canonical `evaluate.macro_f05()`:
+  - Flat threshold $\tau = 0.73$: exactly **`0.98195`** ($P = 0.99596, R = 0.95541$), perfectly matching `config.json`. (US-only: `0.98475`, India-only: `0.97779`).
+  - `decide_expected_f`: **`0.98100`** ($P = 0.99576, R = 0.95444$), strictly inferior to flat thresholding.
+- **Given both of the above closed off without needing more time, redirected the remaining budget to the one untested, well-motivated lever**: more stage-2 training data (`--n-stage2-queries`, currently 4M, Azure VM has headroom at 32GB RAM). More stage-2 rows means more real near-miss negatives for the model to learn to reject — directly targeting the France weakness identified on 2026-09-25 (weak discrimination against near-miss distractors, not weak confidence). In progress as of this entry; see Change Log in `approach.md` for the result once available.
 
 ---
 

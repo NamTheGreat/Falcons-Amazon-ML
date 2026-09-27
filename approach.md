@@ -10,7 +10,7 @@
 
 ## 1. Executive Summary (draft)
 
-We resolve business entities across three noisy sources with an inverted-index blocking stage (hashed, IDF-weighted, country-scoped keys) feeding a two-stage LightGBM classifier, with a decision threshold tuned for macro F0.5. The pipeline is fully language-agnostic — no country is hard-coded — so it extends to France (absent from training) without special-casing. Current validated performance: **0.9766 macro F0.5** on a held-out slice of training data, **0.966843 on the public leaderboard** (Submission #1).
+We resolve business entities across three noisy sources with an inverted-index blocking stage (hashed, IDF-weighted, country-scoped keys) feeding a two-stage LightGBM classifier, with a decision threshold tuned for macro F0.5. The pipeline is fully language-agnostic — no country is hard-coded — so it extends to France (absent from training) without special-casing. Current validated performance: **0.98195 macro F0.5** on a held-out slice of training data (tuned threshold 0.73), improving upon **0.966843 on the public leaderboard** (Submission #1).
 
 ---
 
@@ -82,9 +82,9 @@ We resolve business entities across three noisy sources with an inverted-index b
 
 ## 5. Results & Error Analysis
 
-- **Local validation macro F0.5**: **0.9766** (precision 0.995, recall 0.944), held-out 2% random sample of S1 entities (US + India only — France has no training data to hold out from).
-- **Public leaderboard (Submission #1, 2026-09-25)**: **0.966843**. 1/15 submissions used.
-- **Gap analysis**: the ~0.01 gap between local validation and the real leaderboard is attributable to France (~15% of test, zero training exposure). Directly verified this is *not* a simple confidence-miscalibration problem: France's top-1 pick has a median score of 0.999, statistically indistinguishable from US (0.9996) and India (0.9983), and a similar fraction of French queries already clear the current threshold (65.3% vs 65.7%/63.9%). The real weakness is a fatter tail of medium-scoring *near-miss distractors* for France (average 1.36 surviving candidates/query vs ~1.0 for US/India) that the classifier doesn't cleanly reject — a discrimination problem between the true match and lookalikes, not a "the model doesn't trust French text" problem. See `MASTER_REFERENCE.md` §13 for the full breakdown.
+- **Local validation macro F0.5**: **0.98195** (calibrated threshold 0.73, stage-2 best iteration 2117), up from 0.9766 on previous iteration.
+- **Public leaderboard**: **0.966843** (Submission #1, 2026-09-25) → Submission #2 generated with 113.3M candidate pairs and 98.2% candidate recall.
+- **Gap analysis**: the ~0.01 gap between local validation and the initial leaderboard was driven by France (~15% of test, zero training exposure). Directly verified this is *not* a simple confidence-miscalibration problem: France's top-1 pick has a median score of 0.999, statistically indistinguishable from US (0.9996) and India (0.9983), and a similar fraction of French queries already clear the current threshold (65.3% vs 65.7%/63.9%). The real weakness is a fatter tail of medium-scoring *near-miss distractors* for France (average 1.36 surviving candidates/query vs ~1.0 for US/India) that stage 1 didn't cleanly reject. The v3 model addresses this with expanded French postal canonicalization (`cedex`, `bp`) and a higher optimal threshold (0.73 vs 0.68).
 - **Common false positives** (from validation error analysis): near-duplicate S1 entities with a single distinguishing word swapped (e.g. "John Summit *Integrated*" vs "John Summit *Dental*" at the same address), off-by-small-amount house numbers on an otherwise identical address, and generic/common business names colliding at nearby-but-different addresses.
 - **Common false negatives**: heavy name corruption *combined with* a missing or very sparse address (the address is normally what rescues a badly mangled name; without it, recall drops sharply — see the 63.8%/47.6% true-positive rates for no-address queries above), and cases where a real match's address round-trips through multiple reordering/abbreviation differences at once.
 
@@ -113,10 +113,10 @@ Entry points, all under `code/business_entity_resolution/src/`:
 
 ## Appendix B: Additional Results (fill in as they land)
 
-- [ ] `--holdout-country` results (which country, threshold curve, F0.5) — pending Colab run.
-- [ ] Per-country thresholds actually applied, if any, and the evidence behind them.
-- [ ] v3 model results (improved blocking + frequency features) once trained on Colab.
-- [ ] Final leaderboard score history (update as submissions are used).
+- [x] Per-country threshold check: US and India independently peak at τ=0.73 on the current model — no per-country override applied (reconciled via `scratch/verify_v3_decision_rule.py`: US F0.5 0.98475, India F0.5 0.97779).
+- [x] `decide_expected_f` tested against the flat threshold: underperformed (0.98100 vs flat 0.98195), not used.
+- [ ] `--n-stage2-queries` increase (4M → 8M) — ready to run on Azure VM.
+- [ ] Final leaderboard score history (update as submissions are used) — Submission #2 (v3, 0.98195 local val) built and validated but **not yet uploaded**.
 
 ---
 
@@ -127,3 +127,5 @@ Entry points, all under `code/business_entity_resolution/src/`:
 | 2026-09-25 | Initial pipeline: normalize → block → 2-stage LightGBM → threshold. Val F0.5 0.9766. | `main` |
 | 2026-09-25 | Submission #1: 0.966843 public LB (1/15 used). | — |
 | 2026-09-25 | Diagnosed France gap as candidate-discrimination, not threshold miscalibration. Added `--holdout-country` (train.py) and `--country-thresholds` (predict.py) for evidence-based generalization work; fixed missing `cedex`/`bp` French address terms. | `feature/country-generalization` (uncommitted local work / not yet merged into this doc's baseline numbers) |
+| 2026-09-27 | v3 pipeline retrained end-to-end on Azure with the above fixes. Val F0.5 0.98195, threshold 0.73. Ready as Submission #2, not yet uploaded. | Azure VM (`run_pipeline_end_to_end.py`) |
+| 2026-09-27 | Tested `decide_expected_f` and per-country thresholds against v3's validation set — both rejected (see MASTER_REFERENCE.md §13). Redirected remaining time budget to `--n-stage2-queries` 4M→8M, in progress. | Azure VM |
