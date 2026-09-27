@@ -62,7 +62,7 @@ def _cross(df: pl.DataFrame, left: pl.Expr, right: pl.Expr, tag: str) -> pl.Data
     )
 
 
-def build_keys(df: pl.DataFrame, use_alt: bool) -> pl.DataFrame:
+def _build_keys_slice(df: pl.DataFrame, use_alt: bool) -> pl.DataFrame:
     """df needs rid (UInt32), country, name_core, name_alt, name_compact, name_skel, addr, addr_nums."""
     toks = pl.col("name_core").str.split(" ").list.eval(pl.element().filter(pl.element().str.len_chars() >= 2))
     if use_alt:
@@ -141,6 +141,17 @@ def build_keys(df: pl.DataFrame, use_alt: bool) -> pl.DataFrame:
         _explode(df, anum2, KIND_ADDR, "d:"),
     ]
     return pl.concat(parts).unique()
+
+
+def build_keys(df: pl.DataFrame, use_alt: bool, slice_size: int = 400_000) -> pl.DataFrame:
+    """Build keys in slices to cap peak RAM to ~1.5 GB instead of 11.5 GB."""
+    if df.height <= slice_size:
+        return _build_keys_slice(df, use_alt)
+    slices = [
+        _build_keys_slice(df.slice(i, slice_size), use_alt)
+        for i in range(0, df.height, slice_size)
+    ]
+    return pl.concat(slices)
 
 
 def generate_candidates(

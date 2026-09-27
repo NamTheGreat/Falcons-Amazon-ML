@@ -23,6 +23,8 @@ output/
 *.parquet
 *.log
 *.tar.gz
+*.zip
+scratch/
 
 # IDE
 .vscode/
